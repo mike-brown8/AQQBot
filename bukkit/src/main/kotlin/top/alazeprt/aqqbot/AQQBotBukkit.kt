@@ -115,7 +115,7 @@ class AQQBotBukkit : JavaPlugin(), AQQBot {
                     try {
                         Class.forName("me.clip.placeholderapi.PlaceholderAPI")
                     } catch (e: ClassNotFoundException) {
-                        log(LogLevel.WARN, "You don't install soft dependency PlaceholderAPI! You cannot use placeholder in anywhere!")
+                        log(LogLevel.WARN, "You didn't install soft dependency PlaceholderAPI! You cannot use placeholder in anywhere!")
                     }
                     audience = BukkitAudiences.create(this)
                     server.pluginManager.registerEvents(BukkitEventHandler(this), this)
