@@ -84,17 +84,47 @@ class AQQBotBukkit : JavaPlugin(), AQQBot {
 
     override fun onEnable() {
         libraryManager = BukkitLibraryManager(this)
-        this.enable()
-        try {
-            Class.forName("me.clip.placeholderapi.PlaceholderAPI")
-        } catch (e: ClassNotFoundException) {
-            log(LogLevel.WARN, "You don't install soft dependency PlaceholderAPI! You cannot use placeholder in anywhere!")
-        }
-        audience = BukkitAudiences.create(this);
-        server.pluginManager.registerEvents(BukkitEventHandler(this), this)
-        val metrics = Metrics(this, pluginId)
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            AQQBotExpansion(this).register()
+        // 异步执行 enable()，避免主线程阻塞
+        server.scheduler.runTaskAsynchronously(this) {
+            var connected = false
+            val start = System.currentTimeMillis()
+            var enableException: Exception? = null
+            try {
+                this.enable()
+                // 检查 WebSocket 是否连接成功（假设 getBot()?.isConnected 可用）
+                while (System.currentTimeMillis() - start < 10_000) {
+                    if (top.alazeprt.aqqbot.bot.BotProvider.getBot()?.isConnected == true) {
+                        connected = true
+                        break
+                    }
+                    Thread.sleep(200)
+                }
+            } catch (e: Exception) {
+                enableException = e
+            }
+            // 切回主线程执行后续 Bukkit API 操作
+            server.scheduler.runTask(this) {
+                if (!connected) {
+                    server.consoleSender.sendMessage("§c§l[!] AQQBot failed to connect to OneBot WebSocket within 10 seconds!")
+                    server.consoleSender.sendMessage("§c§l[!] The server will run in NO-WHITELIST mode and the plugin will be disabled!")
+                    if (enableException != null) {
+                        enableException.printStackTrace()
+                    }
+                    server.pluginManager.disablePlugin(this)
+                } else {
+                    try {
+                        Class.forName("me.clip.placeholderapi.PlaceholderAPI")
+                    } catch (e: ClassNotFoundException) {
+                        log(LogLevel.WARN, "You don't install soft dependency PlaceholderAPI! You cannot use placeholder in anywhere!")
+                    }
+                    audience = BukkitAudiences.create(this)
+                    server.pluginManager.registerEvents(BukkitEventHandler(this), this)
+                    val metrics = Metrics(this, pluginId)
+                    if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+                        AQQBotExpansion(this).register()
+                    }
+                }
+            }
         }
     }
 
